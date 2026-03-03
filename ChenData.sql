@@ -627,3 +627,37 @@ GO
 
 select * 
 from dbo.vw_MasterTransactions
+
+-- INSERT địa chỉ cho user "Nhà Đầu Tư Mekong 5"
+INSERT INTO core.UserAddresses (UserId, Province, District, Commune, AddressLine)
+VALUES (
+    'C250BBB9-0932-4C3C-84BB-01B003C1BC63',
+    N'An Giang',
+    N'Long Xuyên', 
+    N'Mỹ Bình',
+    N'123 Đường Trần Hưng Đạo'
+);
+
+-- INSERT thêm 1 user khác (lấy UserId từ bảng Users)
+INSERT INTO core.UserAddresses (UserId, Province, District, Commune, AddressLine)
+VALUES (
+    (SELECT TOP 1 UserId FROM dbo.Users WHERE DisplayName != N'Nhà Đầu Tư Mekong 5'),
+    N'Kiên Giang',
+    N'Rạch Giá',
+    N'Vĩnh Thanh',
+    N'456 Đường Nguyễn Trung Trực'
+);
+
+-- Truy vấn địa chỉ kèm thông tin user
+SELECT 
+    u.DisplayName,
+    u.PhoneNumber,
+    u.RoleType,
+    a.Province,
+    a.District,
+    a.Commune,
+    a.AddressLine,
+    a.CreatedAt
+FROM dbo.Users u
+INNER JOIN core.UserAddresses a ON u.UserId = a.UserId
+ORDER BY u.DisplayName
