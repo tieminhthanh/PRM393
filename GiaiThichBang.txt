@@ -1,0 +1,89 @@
+than_ho_menh/
+
+├── assets/
+│   ├── images/
+│   │   ├── logo.png
+│   │   ├── placeholder.png
+│   │   └── product.png
+│   │
+│   └── icons/
+
+├── lib/
+
+│
+├── database/          ← SQLite database
+│   ├── app_database.dart
+│   ├── database_helper.dart
+│   └── seed_data.dart
+
+│
+├── models/            ← Data model (25 bảng SQL mapping)
+│   ├── user.dart
+│   ├── farmer_profile.dart
+│   ├── sme_profile.dart
+│   ├── image_model.dart
+│   ├── product.dart
+│   ├── cart.dart
+│   ├── cart_item.dart
+│   ├── order.dart
+│   ├── order_item.dart
+│   ├── payment.dart
+│   ├── farm.dart
+│   ├── iot_device.dart
+│   ├── sensor_reading.dart
+│   ├── farming_log.dart
+│   ├── agri_machine.dart
+│   ├── consulting_case.dart
+│   └── notification.dart
+
+│
+├── repositories/      ← Xử lý dữ liệu
+│   ├── product_repository.dart
+│   ├── cart_repository.dart
+│   ├── order_repository.dart
+│   └── user_repository.dart
+
+│
+├── screens/           ← UI màn hình
+│   ├── auth/
+│   │   ├── login_screen.dart
+│   │   └── register_screen.dart
+│   │
+│   ├── home/
+│   │   ├── home_screen.dart
+│   │   └── product_list_screen.dart
+│   │
+│   ├── cart/
+│   │   ├── cart_screen.dart
+│   │   └── checkout_screen.dart
+│   │
+│   ├── profile/
+│   │   └── profile_screen.dart
+│   │
+│   └── iot/
+│       └── farm_monitor_screen.dart
+
+│
+├── widgets/           ← Component dùng lại
+│   ├── product_card.dart
+│   ├── loading_widget.dart
+│   ├── error_widget.dart
+│   └── app_button.dart
+
+│
+├── utils/
+│   ├── validator.dart
+│   ├── uuid_helper.dart
+│   ├── date_helper.dart
+│   └── formatter.dart
+
+│
+├── theme/
+│   ├── app_theme.dart
+│   ├── colors.dart
+│   └── text_styles.dart
+
+│
+├── app.dart
+├── main.dart
+└── pubspec.yaml
