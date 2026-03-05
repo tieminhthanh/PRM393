@@ -1,0 +1,115 @@
+/* ===================== 1. BỔ SUNG USERS & PROFILES (ID từ 11 -> 20) ===================== */
+INSERT INTO Users (UserId, PhoneNumber, Email, PasswordHash, RoleType, DisplayName) VALUES
+(11, '0902234501', 'farmer11@gmail.com', 'Abcd1234@11', 'FARMER', 'Nguyễn Tấn Đạt'),
+(12, '0902234502', 'farmer12@gmail.com', 'Abcd1234@12', 'FARMER', 'Lê Thị Thu Thủy'),
+(13, '0902234503', 'farmer13@gmail.com', 'Abcd1234@13', 'FARMER', 'Phạm Trọng Bằng'),
+(14, '0902234504', 'farmer14@gmail.com', 'Abcd1234@14', 'FARMER', 'Trần Hữu Phúc'),
+(15, '0902234505', 'farmer15@gmail.com', 'Abcd1234@15', 'FARMER', 'Đinh Thị Mai'),
+(16, '0902234506', 'farmer16@gmail.com', 'Abcd1234@16', 'FARMER', 'Vũ Văn Thanh'),
+(17, '0912234501', 'sme5@agri.vn', 'Abcd1234@17', 'SME', 'Vườn Ươm Sinh Thái Vina'),
+(18, '0912234502', 'sme6@agri.vn', 'Abcd1234@18', 'SME', 'Cơ Khí Nông Nghiệp Thắng Lợi'),
+(19, '0912234503', 'sme7@agri.vn', 'Abcd1234@19', 'SME', 'Công Ty Phân Bón Miền Nam'),
+(20, '0912234504', 'sme8@agri.vn', 'Abcd1234@20', 'SME', 'HTX Nông Sản Sạch Global');
+
+INSERT INTO FarmerProfiles (UserId, FullName, Village, ContactPhone) VALUES
+(11, 'Nguyễn Tấn Đạt', 'Thôn Suối Dây', '0902234501'),
+(12, 'Lê Thị Thu Thủy', 'Xã Hòa Phú', '0902234502'),
+(13, 'Phạm Trọng Bằng', 'Ấp Bình Tả', '0902234503'),
+(14, 'Trần Hữu Phúc', 'Bản Áng', '0902234504'),
+(15, 'Đinh Thị Mai', 'Xóm Lèo', '0902234505'),
+(16, 'Vũ Văn Thanh', 'Thôn Mỹ Lợi', '0902234506');
+
+INSERT INTO SMEProfiles (UserId, CompanyName, TaxCode, ContactName) VALUES
+(17, 'Vườn Ươm Sinh Thái Vina', '0505050505', 'Anh Hoàng'),
+(18, 'Cơ Khí Nông Nghiệp Thắng Lợi', '0606060606', 'Chú Thắng'),
+(19, 'Công Ty Phân Bón Miền Nam', '0707070707', 'Chị Yến'),
+(20, 'HTX Nông Sản Sạch Global', '0808080808', 'Ông Tài');
+
+/* ===================== 2. BỔ SUNG FARMS & IOT ===================== */
+INSERT INTO iot_Farms (FarmId, FarmerId, FarmName, Location, AreaHectares, CropType) VALUES
+(6, 11, 'Vườn Tiêu Chư Sê', '13.8,108.0', 1.5, 'Hồ Tiêu'),
+(7, 12, 'Trại Dưa Lưới Công Nghệ Cao', '10.5,106.6', 0.8, 'Dưa Lưới'),
+(8, 13, 'Ruộng Lúa ST25 Sóc Trăng', '9.6,105.9', 3.5, 'Lúa ST25'),
+(9, 14, 'Vườn Xoài Cát Hòa Lộc', '10.3,105.9', 2.0, 'Xoài'),
+(10, 15, 'Rẫy Mắc Ca Lâm Đồng', '11.5,107.8', 4.0, 'Mắc Ca'),
+(11, 16, 'Đồi Thanh Long Ruột Đỏ', '10.9,108.1', 2.5, 'Thanh Long');
+
+INSERT INTO iot_IoTDevices (DeviceId, FarmId, DeviceType, Description, BatteryLevel) VALUES
+(7, 6, 'SOIL', 'Cảm biến độ ẩm gốc tiêu khu vực đồi dốc, cảnh báo tưới nhỏ giọt', 70),
+(8, 7, 'AIR', 'Hệ thống đo nhiệt độ và độ ẩm nhà màng dưa lưới (Khu 1)', 95),
+(9, 7, 'WATER', 'Cảm biến nồng độ dinh dưỡng EC và pH bồn chứa thủy canh', 88),
+(10, 8, 'WATER', 'Cảm biến theo dõi mực nước ruộng lúa chống ngập úng mặn', 65),
+(11, 9, 'SOIL', 'Máy đo độ ẩm đất đa tầng vườn xoài', 80),
+(12, 10, 'GATEWAY', 'Trạm thu phát sóng trung tâm Rẫy Mắc Ca, kết nối Lora', 100),
+(13, 11, 'AIR', 'Cảm biến ánh sáng cường độ cao khu vực chong đèn Thanh Long', 92);
+
+/* ===================== 3. BỔ SUNG SẢN PHẨM THƯƠNG MẠI ===================== */
+INSERT INTO commerce_Products (ProductId, SellerId, Title, Description, Category, Price, Unit) VALUES
+(7, 11, 'Hạt Tiêu Đen Chư Sê', 'Tiêu đen sấy lạnh giữ nguyên tinh dầu, hạt to đều, cay nồng. Được thu hoạch thủ công và loại bỏ cuống 100%.', 'Nông sản', 120000, 'kg'),
+(8, 12, 'Dưa Lưới Taki Nhật Bản', 'Dưa lưới trồng nhà màng công nghệ Israel, độ brix > 14 ngọt thanh, vân lưới đẹp, trọng lượng 1.5-1.8kg/trái.', 'Trái cây', 85000, 'trái'),
+(9, 13, 'Gạo ST25 Chuẩn Lúa Tôm', 'Gạo ngon nhất thế giới ST25, trồng lúa vuông tôm sinh thái không sử dụng thuốc BVTV. Cơm dẻo, thơm lừng.', 'Nông sản', 38000, 'kg'),
+(10, 14, 'Xoài Cát Hòa Lộc Loại 1', 'Xoài trái lớn 400-600g, vỏ vàng ươm, thịt chắc không xơ, vị ngọt đậm đà. Thích hợp làm quà biếu.', 'Trái cây', 110000, 'kg'),
+(11, 15, 'Hạt Mắc Ca Nứt Vỏ', 'Mắc ca sấy nứt vỏ tự nhiên, nhân giòn béo ngậy. Nguồn gốc Lâm Đồng, đóng gói túi zip hút chân không 500g.', 'Nông sản', 250000, 'kg'),
+(12, 16, 'Thanh Long Ruột Đỏ Bình Thuận', 'Thanh long ruột đỏ tai xanh, chín tự nhiên, độ ngọt cao, giàu chất chống oxy hóa. Cắt tại vườn giao trong ngày.', 'Trái cây', 25000, 'kg'),
+(13, 17, 'Khay Ươm Hạt Giống 104 Lỗ', 'Khay nhựa ươm hạt giống siêu bền, dày dặn, tái sử dụng nhiều lần. Kích thước chuẩn phù hợp mọi loại giá thể.', 'Công cụ', 12000, 'cái'),
+(14, 19, 'Phân Trùn Quế Hữu Cơ', 'Phân trùn quế nguyên chất 100%, bổ sung Trichoderma ngăn ngừa nấm bệnh. Tốt cho rau sạch và hoa cây cảnh.', 'Vật tư', 25000, 'túi 2kg'),
+(15, 20, 'Gói Tư Vấn VietGAP', 'Dịch vụ tư vấn, thiết lập hồ sơ và lấy mẫu kiểm nghiệm để đạt chứng nhận VietGAP cho nông trại trong 3 tháng.', 'Dịch vụ', 15000000, 'gói');
+
+/* ===================== 4. BỔ SUNG MÁY MÓC LOGISTICS ===================== */
+INSERT INTO logistics_AgriMachines (MachineId, OwnerId, MachineType, Description, BasePricePerHour) VALUES
+(7, 18, 'Máy Xới Đất Đa Năng Mini', 'Máy xới tay động cơ xăng 6.5HP. Gọn nhẹ, dễ di chuyển, chuyên dùng xới cỏ, lên luống cho vườn hoa, vườn rau nhỏ.', 80000),
+(8, 18, 'Máy Phun Khói Diệt Côn Trùng', 'Máy phun khói mù nóng dạng xách tay, len lỏi sâu vào tán cây tiêu, sầu riêng để diệt rầy rệp mọt. Không làm ướt lá.', 120000),
+(9, 9, 'Xe Tải Thùng Bạt 5 Tấn', 'Xe tải Hino 5 tấn thùng dài 6m. Chở được khối lượng lớn nông sản, phân bón. Có bạt che nắng mưa chắc chắn.', 250000),
+(10, 18, 'Máy Cấy Lúa Không Động Cơ', 'Máy cấy lúa kéo tay 4 hàng, sử dụng sức người nhưng năng suất gấp 3 lần cấy tay truyền thống. Trọng lượng siêu nhẹ.', 40000),
+(11, 18, 'Trạm Thời Tiết Nông Nghiệp', 'Thiết bị di động gắn tạm thời, đo sức gió, lượng mưa, độ ẩm dự báo thời tiết cục bộ trong bán kính 2km.', 50000),
+(12, 6, 'Máy Xúc Đào Mini', 'Xe cuốc bánh xích nhỏ gọn, chuyên dùng đào mương, làm rãnh thoát nước, hoặc tạo hố trồng cây ăn trái.', 350000);
+
+/* ===================== 5. BỔ SUNG HÌNH ẢNH (IMAGES) ===================== */
+
+-- Hình User (11 -> 20)
+INSERT INTO Images (ReferenceId, ReferenceType, ImageUrl, IsPrimary) VALUES
+(11, 'USER', 'https://i.pravatar.cc/150?u=f11', 1),
+(12, 'USER', 'https://i.pravatar.cc/150?u=f12', 1),
+(13, 'USER', 'https://i.pravatar.cc/150?u=f13', 1),
+(14, 'USER', 'https://i.pravatar.cc/150?u=f14', 1),
+(15, 'USER', 'https://i.pravatar.cc/150?u=f15', 1),
+(16, 'USER', 'https://i.pravatar.cc/150?u=f16', 1),
+(17, 'USER', 'https://picsum.photos/id/117/200/200', 1), -- SME 17
+(18, 'USER', 'https://picsum.photos/id/118/200/200', 1), -- SME 18
+(19, 'USER', 'https://picsum.photos/id/119/200/200', 1), -- SME 19
+(20, 'USER', 'https://picsum.photos/id/120/200/200', 1); -- SME 20
+
+-- Hình Farms (6 -> 11)
+INSERT INTO Images (ReferenceId, ReferenceType, ImageUrl, IsPrimary) VALUES
+(6, 'FARM', 'https://picsum.photos/id/206/600/400', 1),
+(7, 'FARM', 'https://picsum.photos/id/207/600/400', 1),
+(8, 'FARM', 'https://picsum.photos/id/208/600/400', 1),
+(9, 'FARM', 'https://picsum.photos/id/209/600/400', 1),
+(10, 'FARM', 'https://picsum.photos/id/210/600/400', 1),
+(11, 'FARM', 'https://picsum.photos/id/211/600/400', 1);
+
+-- Hình Sản Phẩm (7 -> 15)
+INSERT INTO Images (ReferenceId, ReferenceType, ImageUrl, IsPrimary) VALUES
+(7, 'PRODUCT', 'https://picsum.photos/id/317/400/400', 1), 
+(8, 'PRODUCT', 'https://picsum.photos/id/318/400/400', 1),
+(9, 'PRODUCT', 'https://picsum.photos/id/319/400/400', 1),
+(10, 'PRODUCT', 'https://picsum.photos/id/320/400/400', 1),
+(11, 'PRODUCT', 'https://picsum.photos/id/321/400/400', 1),
+(12, 'PRODUCT', 'https://picsum.photos/id/322/400/400', 1),
+(13, 'PRODUCT', 'https://picsum.photos/id/323/400/400', 1),
+(14, 'PRODUCT', 'https://picsum.photos/id/324/400/400', 1),
+(15, 'PRODUCT', 'https://picsum.photos/id/325/400/400', 1);
+
+-- Thêm một vài ảnh phụ cho dưa lưới và thanh long
+INSERT INTO Images (ReferenceId, ReferenceType, ImageUrl, IsPrimary) VALUES
+(8, 'PRODUCT', 'https://picsum.photos/id/326/400/400', 0),
+(12, 'PRODUCT', 'https://picsum.photos/id/327/400/400', 0);
+
+-- Hình Máy Móc (7 -> 12)
+INSERT INTO Images (ReferenceId, ReferenceType, ImageUrl, IsPrimary) VALUES
+(7, 'MACHINE', 'https://picsum.photos/id/417/500/300', 1),
+(8, 'MACHINE', 'https://picsum.photos/id/418/500/300', 1),
+(9, 'MACHINE', 'https://picsum.photos/id/419/500/300', 1),
+(10, 'MACHINE', 'https://picsum.photos/id/420/500/300', 1),
+(11, 'MACHINE', 'https://picsum.photos/id/421/500/300', 1),
+(12, 'MACHINE', 'https://picsum.photos/id/422/500/300', 1);
