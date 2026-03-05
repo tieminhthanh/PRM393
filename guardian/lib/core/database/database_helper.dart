@@ -1,7 +1,7 @@
 // =============================================================
 // database_helper.dart
 // SQLite Database Manager cho PRM393
-// Không lạm dụng static
+// Đã cập nhật để dùng object Migrations thay vì static
 // =============================================================
 
 import 'package:sqflite/sqflite.dart';
@@ -43,11 +43,14 @@ class DatabaseProvider {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, config.name);
 
+    // Khởi tạo instance của Migrations
+    const migrations = Migrations();
+
     return openDatabase(
       path,
       version: config.version,
-      onCreate: Migrations.onCreate,
-      onUpgrade: Migrations.onUpgrade,
+      onCreate: migrations.onCreate,
+      onUpgrade: migrations.onUpgrade,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON;');
         await db.execute("PRAGMA encoding = 'UTF-8';");
@@ -83,6 +86,7 @@ class DatabaseService {
 
   final DatabaseProvider provider;
 
+  /// Insert một record vào table
   Future<int> insert(String table, Map<String, dynamic> values) async {
     final db = await provider.database;
 
@@ -93,6 +97,7 @@ class DatabaseService {
     );
   }
 
+  /// Query dữ liệu từ table với các điều kiện
   Future<List<Map<String, dynamic>>> query(
     String table, {
     bool distinct = false,
@@ -121,6 +126,7 @@ class DatabaseService {
     );
   }
 
+  /// Query một record theo ID
   Future<Map<String, dynamic>?> queryById(
     String table,
     String idColumn,
@@ -136,6 +142,7 @@ class DatabaseService {
     return result.isNotEmpty ? result.first : null;
   }
 
+  /// Update record trong table
   Future<int> update(
     String table,
     Map<String, dynamic> values, {
@@ -147,6 +154,7 @@ class DatabaseService {
     return db.update(table, values, where: where, whereArgs: whereArgs);
   }
 
+  /// Delete record khỏi table
   Future<int> delete(
     String table, {
     required String where,
@@ -157,6 +165,7 @@ class DatabaseService {
     return db.delete(table, where: where, whereArgs: whereArgs);
   }
 
+  /// Đếm số lượng record
   Future<int> count(
     String table, {
     String? where,
@@ -164,15 +173,15 @@ class DatabaseService {
   }) async {
     final db = await provider.database;
 
-    final result = await db.rawQuery(
-      'SELECT COUNT(*) as cnt FROM $table'
-      '${where != null ? ' WHERE $where' : ''}',
-      whereArgs,
-    );
+    final sql = 'SELECT COUNT(*) as cnt FROM $table'
+        '${where != null ? ' WHERE $where' : ''}';
+
+    final result = await db.rawQuery(sql, whereArgs ?? []);
 
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
+  /// Execute raw SQL query
   Future<List<Map<String, dynamic>>> rawQuery(
     String sql, [
     List<dynamic>? args,
@@ -181,21 +190,46 @@ class DatabaseService {
     return db.rawQuery(sql, args);
   }
 
+  /// Execute raw SQL command
   Future<void> rawExecute(String sql, [List<dynamic>? args]) async {
     final db = await provider.database;
     await db.execute(sql, args);
   }
 
+  /// Insert nhiều record trong một batch
   Future<void> batchInsert(
     String table,
     List<Map<String, dynamic>> rows,
   ) async {
-    final db = await provider.database;
+    if (rows.isEmpty) return;
 
+    final db = await provider.database;
     final batch = db.batch();
 
     for (final row in rows) {
       batch.insert(table, row, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+
+    await batch.commit(noResult: true);
+  }
+
+  /// Delete nhiều record trong một batch
+  Future<void> batchDelete(
+    String table, {
+    required List<int> ids,
+    required String idColumn,
+  }) async {
+    if (ids.isEmpty) return;
+
+    final db = await provider.database;
+    final batch = db.batch();
+
+    for (final id in ids) {
+      batch.delete(
+        table,
+        where: '$idColumn = ?',
+        whereArgs: [id],
+      );
     }
 
     await batch.commit(noResult: true);
@@ -211,21 +245,64 @@ class DomainQueries {
 
   final DatabaseService db;
 
+  /// Lấy danh sách sản phẩm với thông tin người bán và ảnh chính
   Future<List<Map<String, dynamic>>> getProductsWithSeller() {
     return db.rawQuery('''
       SELECT
         p.ProductId,
+        p.SellerId,
         p.Title,
         p.Price,
         p.Unit,
         p.Category,
-        u.DisplayName AS SellerName
+        p.CreatedAt,
+        u.DisplayName AS SellerName,
+        i.ImageUrl AS ImageUrl
       FROM commerce_Products p
       JOIN Users u ON p.SellerId = u.UserId
+      LEFT JOIN Images i ON i.ReferenceId = p.ProductId
+        AND i.ReferenceType = 'PRODUCT' AND i.IsPrimary = 1
       ORDER BY p.CreatedAt DESC
     ''');
   }
 
+  /// Lấy chi tiết sản phẩm theo ID
+  Future<Map<String, dynamic>?> getProductDetail(int productId) {
+    return db.rawQuery(
+      '''
+      SELECT
+        p.ProductId,
+        p.SellerId,
+        p.Title,
+        p.Price,
+        p.Unit,
+        p.Category,
+        p.Description,
+        p.CreatedAt,
+        u.DisplayName AS SellerName,
+        u.Email AS SellerEmail
+      FROM commerce_Products p
+      JOIN Users u ON p.SellerId = u.UserId
+      WHERE p.ProductId = ?
+    ''',
+      [productId],
+    ).then((result) => result.isNotEmpty ? result.first : null);
+  }
+
+  /// Lấy tất cả ảnh của sản phẩm
+  Future<List<Map<String, dynamic>>> getProductImages(int productId) {
+    return db.rawQuery(
+      '''
+      SELECT ImageId, ImageUrl, IsPrimary, DisplayOrder
+      FROM Images
+      WHERE ReferenceId = ? AND ReferenceType = 'PRODUCT'
+      ORDER BY IsPrimary DESC, DisplayOrder ASC
+    ''',
+      [productId],
+    );
+  }
+
+  /// Lấy danh sách trang trại theo nông dân
   Future<List<Map<String, dynamic>>> getFarmsByFarmer(int farmerId) {
     return db.rawQuery(
       '''
@@ -239,6 +316,7 @@ class DomainQueries {
     );
   }
 
+  /// Lấy danh sách thiết bị IoT với dữ liệu cảm biến mới nhất
   Future<List<Map<String, dynamic>>> getDevicesWithLatestReading(int farmId) {
     return db.rawQuery(
       '''
@@ -256,6 +334,7 @@ class DomainQueries {
     );
   }
 
+  /// Lấy danh sách đơn hàng theo người mua
   Future<List<Map<String, dynamic>>> getOrdersByBuyer(int buyerId) {
     return db.rawQuery(
       '''
@@ -263,7 +342,7 @@ class DomainQueries {
              p.Title AS ProductTitle
       FROM commerce_Orders o
       JOIN commerce_OrderItems oi ON oi.OrderId = o.OrderId
-      JOIN commerce_Products   p  ON p.ProductId = oi.ProductId
+      JOIN commerce_Products p ON p.ProductId = oi.ProductId
       WHERE o.BuyerId = ?
       ORDER BY o.CreatedAt DESC
     ''',
@@ -271,6 +350,7 @@ class DomainQueries {
     );
   }
 
+  /// Lấy danh sách thông báo chưa đọc
   Future<List<Map<String, dynamic>>> getUnreadNotifications(int userId) {
     return db.query(
       'Notifications',
@@ -280,6 +360,7 @@ class DomainQueries {
     );
   }
 
+  /// Lấy danh sách đặt máy theo trang trại
   Future<List<Map<String, dynamic>>> getBookingsByFarm(int farmId) {
     return db.rawQuery(
       '''
@@ -295,6 +376,7 @@ class DomainQueries {
     );
   }
 
+  /// Lấy ảnh chính của một tài nguyên
   Future<String?> getPrimaryImage(String referenceType, int referenceId) async {
     final result = await db.query(
       'Images',

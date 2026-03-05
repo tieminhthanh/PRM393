@@ -1,12 +1,12 @@
 // =============================================================
 // migrations.dart
 // Tạo bảng (DDL) + Seed data khớp 100% với SQL gốc PRM393
+// Thiết kế theo hướng đối tượng, không lạm dụng static
 // =============================================================
 
 import 'package:sqflite/sqflite.dart';
 
 class Migrations {
-  // Có thể dùng const constructor nếu class không chứa trạng thái (state)
   const Migrations();
 
   // -------------------------------------------------------

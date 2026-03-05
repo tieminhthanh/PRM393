@@ -1,122 +1,199 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import '../constants/api_constants.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+// =============================================================
+// API RESPONSE WRAPPER
+// =============================================================
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ApiResponse<T> {
+  final T? data;
+  final String? error;
+  final int statusCode;
+  final bool isSuccess;
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
+  const ApiResponse._({
+    this.data,
+    this.error,
+    required this.statusCode,
+    required this.isSuccess,
+  });
+
+  factory ApiResponse.success(T data, int statusCode) {
+    return ApiResponse._(data: data, statusCode: statusCode, isSuccess: true);
+  }
+
+  factory ApiResponse.failure(String error, int statusCode) {
+    return ApiResponse._(error: error, statusCode: statusCode, isSuccess: false);
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+// =============================================================
+// TOKEN PROVIDER (interface)
+// =============================================================
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+abstract class TokenProvider {
+  Future<String?> getAccessToken();
+  Future<void> onUnauthorized();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+// =============================================================
+// API CLIENT
+// =============================================================
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+class ApiClient {
+  ApiClient({
+    required this.constants,
+    this.tokenProvider,
+  });
+
+  final ApiConstants constants;
+  final TokenProvider? tokenProvider;
+
+  Future<Map<String, String>> _buildHeaders({bool withAuth = true}) async {
+    final headers = <String, String>{
+      constants.headers.contentType: constants.headers.json,
+      constants.headers.accept: constants.headers.json,
+    };
+
+    if (withAuth && tokenProvider != null) {
+      final token = await tokenProvider!.getAccessToken();
+      if (token != null) {
+        headers[constants.headers.authorization] = '${constants.headers.bearer}$token';
+      }
+    }
+
+    return headers;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
-    );
+  Future<ApiResponse<Map<String, dynamic>>> get(
+    String url, {
+    Map<String, String>? queryParams,
+    bool withAuth = true,
+  }) async {
+    try {
+      final uri = Uri.parse(url).replace(queryParameters: queryParams);
+      final headers = await _buildHeaders(withAuth: withAuth);
+
+      final response = await http
+          .get(uri, headers: headers)
+          .timeout(constants.receiveTimeout);
+
+      return _handleResponse(response);
+    } on SocketException {
+      return ApiResponse.failure('Không có kết nối mạng', 0);
+    } on HttpException {
+      return ApiResponse.failure('Lỗi kết nối', 0);
+    } catch (e) {
+      return ApiResponse.failure(e.toString(), 0);
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> post(
+    String url, {
+    Map<String, dynamic>? body,
+    bool withAuth = true,
+  }) async {
+    try {
+      final headers = await _buildHeaders(withAuth: withAuth);
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(constants.sendTimeout);
+
+      return _handleResponse(response);
+    } on SocketException {
+      return ApiResponse.failure('Không có kết nối mạng', 0);
+    } catch (e) {
+      return ApiResponse.failure(e.toString(), 0);
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> put(
+    String url, {
+    Map<String, dynamic>? body,
+    bool withAuth = true,
+  }) async {
+    try {
+      final headers = await _buildHeaders(withAuth: withAuth);
+      final response = await http
+          .put(
+            Uri.parse(url),
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(constants.sendTimeout);
+
+      return _handleResponse(response);
+    } on SocketException {
+      return ApiResponse.failure('Không có kết nối mạng', 0);
+    } catch (e) {
+      return ApiResponse.failure(e.toString(), 0);
+    }
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> delete(
+    String url, {
+    bool withAuth = true,
+  }) async {
+    try {
+      final headers = await _buildHeaders(withAuth: withAuth);
+      final response = await http
+          .delete(Uri.parse(url), headers: headers)
+          .timeout(constants.receiveTimeout);
+
+      return _handleResponse(response);
+    } on SocketException {
+      return ApiResponse.failure('Không có kết nối mạng', 0);
+    } catch (e) {
+      return ApiResponse.failure(e.toString(), 0);
+    }
+  }
+
+  ApiResponse<Map<String, dynamic>> _handleResponse(http.Response response) {
+    final statusCode = response.statusCode;
+
+    if (statusCode == HttpStatusCode.unauthorized && tokenProvider != null) {
+      tokenProvider!.onUnauthorized();
+    }
+
+    if (statusCode >= 200 && statusCode < 300) {
+      if (response.body.isEmpty || statusCode == HttpStatusCode.noContent) {
+        return ApiResponse.success({}, statusCode);
+      }
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      return ApiResponse.success(decoded as Map<String, dynamic>, statusCode);
+    }
+
+    String errorMessage;
+    try {
+      final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      errorMessage = body['message'] as String? ?? 'Có lỗi xảy ra';
+    } catch (_) {
+      errorMessage = _defaultError(statusCode);
+    }
+
+    return ApiResponse.failure(errorMessage, statusCode);
+  }
+
+  String _defaultError(int code) {
+    switch (code) {
+      case HttpStatusCode.badRequest:
+        return 'Dữ liệu không hợp lệ';
+      case HttpStatusCode.unauthorized:
+        return 'Phiên đăng nhập hết hạn';
+      case HttpStatusCode.forbidden:
+        return 'Không có quyền truy cập';
+      case HttpStatusCode.notFound:
+        return 'Không tìm thấy tài nguyên';
+      case HttpStatusCode.serverError:
+        return 'Lỗi máy chủ';
+      default:
+        return 'Có lỗi xảy ra';
+    }
   }
 }

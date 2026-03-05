@@ -1,122 +1,186 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+enum ButtonVariant { primary, secondary, outlined, danger, ghost }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+enum ButtonSize { small, medium, large }
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
+class CustomButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final ButtonVariant variant;
+  final ButtonSize size;
+  final bool isLoading;
+  final bool fullWidth;
+  final IconData? prefixIcon;
+  final IconData? suffixIcon;
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  const CustomButton({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.variant = ButtonVariant.primary,
+    this.size = ButtonSize.medium,
+    this.isLoading = false,
+    this.fullWidth = false,
+    this.prefixIcon,
+    this.suffixIcon,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+    final config = _ButtonConfig.fromVariant(variant, context);
+    final sizeConfig = _ButtonSizeConfig.fromSize(size);
+
+    final child = isLoading
+        ? SizedBox(
+            width: sizeConfig.iconSize,
+            height: sizeConfig.iconSize,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: config.foreground,
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
-    );
+          )
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (prefixIcon != null) ...[
+                Icon(prefixIcon, size: sizeConfig.iconSize, color: config.foreground),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: sizeConfig.fontSize,
+                  fontWeight: FontWeight.w600,
+                  color: config.foreground,
+                ),
+              ),
+              if (suffixIcon != null) ...[
+                const SizedBox(width: 6),
+                Icon(suffixIcon, size: sizeConfig.iconSize, color: config.foreground),
+              ],
+            ],
+          );
+
+    final button = variant == ButtonVariant.outlined || variant == ButtonVariant.ghost
+        ? OutlinedButton(
+            onPressed: isLoading ? null : onPressed,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: config.foreground,
+              side: variant == ButtonVariant.outlined
+                  ? BorderSide(color: config.border ?? config.foreground)
+                  : BorderSide.none,
+              backgroundColor: config.background,
+              minimumSize: Size(0, sizeConfig.height),
+              padding: sizeConfig.padding,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: child,
+          )
+        : ElevatedButton(
+            onPressed: isLoading ? null : onPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: config.background,
+              foregroundColor: config.foreground,
+              disabledBackgroundColor: config.background?.withOpacity(0.6),
+              minimumSize: Size(0, sizeConfig.height),
+              padding: sizeConfig.padding,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: child,
+          );
+
+    if (fullWidth) {
+      return SizedBox(width: double.infinity, child: button);
+    }
+    return button;
+  }
+}
+
+class _ButtonConfig {
+  final Color? background;
+  final Color foreground;
+  final Color? border;
+
+  const _ButtonConfig({
+    this.background,
+    required this.foreground,
+    this.border,
+  });
+
+  factory _ButtonConfig.fromVariant(ButtonVariant variant, BuildContext context) {
+    const primary = Color(0xFF09F6AB);
+    const primaryDark = Color(0xFF07C98B);
+    const onPrimary = Color(0xFF0F172A);
+    const textPrimary = Color(0xFF0F172A);
+    const borderColor = Color(0xFFE2E8F0);
+    const errorColor = Color(0xFFB91C1C);
+    const errorBg = Color(0xFFFEE2E2);
+
+    switch (variant) {
+      case ButtonVariant.primary:
+        return const _ButtonConfig(background: primary, foreground: onPrimary);
+      case ButtonVariant.secondary:
+        return const _ButtonConfig(background: primaryDark, foreground: onPrimary);
+      case ButtonVariant.outlined:
+        return const _ButtonConfig(
+          background: Colors.transparent,
+          foreground: textPrimary,
+          border: borderColor,
+        );
+      case ButtonVariant.danger:
+        return const _ButtonConfig(background: errorBg, foreground: errorColor);
+      case ButtonVariant.ghost:
+        return const _ButtonConfig(
+          background: Colors.transparent,
+          foreground: textPrimary,
+        );
+    }
+  }
+}
+
+class _ButtonSizeConfig {
+  final double height;
+  final double fontSize;
+  final double iconSize;
+  final EdgeInsets padding;
+
+  const _ButtonSizeConfig({
+    required this.height,
+    required this.fontSize,
+    required this.iconSize,
+    required this.padding,
+  });
+
+  factory _ButtonSizeConfig.fromSize(ButtonSize size) {
+    switch (size) {
+      case ButtonSize.small:
+        return const _ButtonSizeConfig(
+          height: 36,
+          fontSize: 13,
+          iconSize: 14,
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        );
+      case ButtonSize.medium:
+        return const _ButtonSizeConfig(
+          height: 48,
+          fontSize: 15,
+          iconSize: 16,
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        );
+      case ButtonSize.large:
+        return const _ButtonSizeConfig(
+          height: 56,
+          fontSize: 16,
+          iconSize: 18,
+          padding: EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+        );
+    }
   }
 }
