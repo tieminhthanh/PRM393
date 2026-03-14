@@ -1,30 +1,46 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:guardian/main.dart';
+import 'package:guardian/app.dart';
+import 'package:guardian/features/admin/data/datasource/admin_local_datasource.dart';
+import 'package:guardian/features/admin/domain/entities/enterprise_profile.dart';
+import 'package:guardian/features/admin/domain/entities/system_dashboard_stats.dart';
+
+class _FakeAdminLocalDataSource implements AdminLocalDataSource {
+  @override
+  Future<SystemDashboardStats> getSystemDashboardStats() async {
+    return const SystemDashboardStats(
+      totalEnterprises: 0,
+      totalAdmins: 0,
+      totalFarmers: 0,
+      totalProducts: 0,
+      totalOrders: 0,
+      totalNotifications: 0,
+      activeUsers: 0,
+      inactiveUsers: 0,
+      openMachineRequests: 0,
+      adminProfiles: [],
+      topEnterprises: [],
+    );
+  }
+
+  @override
+  Future<List<EnterpriseProfile>> getEnterpriseProfiles() async => const [];
+
+  @override
+  Future<void> saveEnterpriseProfile(EnterpriseProfile profile) async {}
+
+  @override
+  Future<void> toggleEnterpriseStatus(int userId, bool isActive) async {}
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const GuardianApp());
+  testWidgets('home page renders dashboard shortcuts', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      GuardianApp(adminLocalDataSource: _FakeAdminLocalDataSource()),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Guardian Dashboard'), findsOneWidget);
+    expect(find.text('Doanh nghiệp'), findsOneWidget);
+    expect(find.text('Thống Kê'), findsOneWidget);
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:guardian/features/product/presentation/pages/product_list_page.dart';
+import 'package:guardian/features/routes/app_routes.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -33,6 +34,15 @@ class HomePage extends StatelessWidget {
           ),
           _buildMenuCard(
             context,
+            title: 'Doanh nghiệp',
+            icon: CupertinoIcons.building_2_fill,
+            color: Colors.teal,
+            onTap: () {
+              Navigator.pushNamed(context, AppRoutes.adminDashboard);
+            },
+          ),
+          _buildMenuCard(
+            context,
             title: 'Nông Trại',
             icon: CupertinoIcons.leaf_arrow_circlepath,
             color: Colors.green,
@@ -44,17 +54,21 @@ class HomePage extends StatelessWidget {
           ),
           _buildMenuCard(
             context,
-            title: 'Máy Móc',
-            icon: CupertinoIcons.car_detailed,
-            color: Colors.blue,
-            onTap: () {},
+            title: 'Thống Kê',
+            icon: CupertinoIcons.chart_bar_alt_fill,
+            color: Colors.indigo,
+            onTap: () {
+              Navigator.pushNamed(context, AppRoutes.adminDashboard);
+            },
           ),
           _buildMenuCard(
             context,
-            title: 'Đơn Hàng',
-            icon: CupertinoIcons.doc_text,
-            color: Colors.purple,
-            onTap: () {},
+            title: 'Hỗ Trợ Admin',
+            icon: CupertinoIcons.person_2_square_stack_fill,
+            color: Colors.deepOrange,
+            onTap: () {
+              Navigator.pushNamed(context, AppRoutes.adminDashboard);
+            },
           ),
         ],
       ),
