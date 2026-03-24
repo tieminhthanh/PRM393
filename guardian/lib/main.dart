@@ -13,6 +13,11 @@ import 'package:guardian/features/product/data/repositories/product_repository_i
 import 'package:guardian/features/product/presentation/bloc/product_bloc.dart';
 import 'package:guardian/features/product/presentation/bloc/product_event.dart';
 
+// Import Farm Feature
+import 'package:guardian/features/farm/data/datasources/farm_local_datasource.dart';
+import 'package:guardian/features/farm/data/repositories/farm_repository_impl.dart';
+import 'package:guardian/features/farm/presentation/bloc/farm_bloc.dart';
+
 // Import Pages
 import 'package:guardian/features/product/presentation/pages/home_page.dart';
 import 'package:guardian/features/product/presentation/pages/product_list_page.dart';
@@ -39,13 +44,21 @@ void main() async {
   final productLocalDS = ProductLocalDataSourceImpl(dbService, domainQueries);
   final productRepo = ProductRepositoryImpl(productLocalDS);
 
-  // 3. Chạy App kèm MultiBlocProvider
+  // 3. Khởi tạo Data Sources & Repositories cho Farm
+  final farmLocalDS = FarmLocalDataSourceImpl(dbService);
+  final farmRepo = FarmRepositoryImpl(localDataSource: farmLocalDS);
+
+  // 4. Chạy App kèm MultiBlocProvider
   runApp(
     MultiBlocProvider(
       providers: [
         BlocProvider<ProductBloc>(
           // Khởi tạo Bloc và gọi Event LoadProducts ngay khi app mở
           create: (context) => ProductBloc(repository: productRepo)..add(LoadProducts()),
+        ),
+        BlocProvider<FarmBloc>(
+          // Khởi tạo FarmBloc
+          create: (context) => FarmBloc(repository: farmRepo),
         ),
       ],
       child: const GuardianApp(),

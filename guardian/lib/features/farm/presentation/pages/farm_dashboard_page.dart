@@ -1,16 +1,16 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:guardian/features/product/presentation/pages/product_list_page.dart';
-import 'package:guardian/features/farm/presentation/pages/farm_dashboard_page.dart';
+import 'package:guardian/features/farm/presentation/pages/farmer_list_page.dart';
+import 'package:guardian/features/farm/presentation/pages/all_farms_page.dart';
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class FarmDashboardPage extends StatelessWidget {
+  const FarmDashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Guardian Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Quản lý Nông Trại', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.green.shade600,
         foregroundColor: Colors.white,
       ),
@@ -22,41 +22,27 @@ class HomePage extends StatelessWidget {
         children: [
           _buildMenuCard(
             context,
-            title: 'Sản Phẩm',
-            icon: CupertinoIcons.cube_box,
-            color: Colors.orange,
+            title: 'Quản lý Nông Dân',
+            icon: CupertinoIcons.person_2,
+            color: Colors.blue,
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ProductListPage()),
+                MaterialPageRoute(builder: (context) => const FarmerListPage()),
               );
             },
           ),
           _buildMenuCard(
             context,
-            title: 'Nông Trại',
+            title: 'Quản lý Trang Trại',
             icon: CupertinoIcons.leaf_arrow_circlepath,
             color: Colors.green,
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const FarmDashboardPage()),
+                MaterialPageRoute(builder: (context) => const AllFarmsPage()),
               );
             },
-          ),
-          _buildMenuCard(
-            context,
-            title: 'Máy Móc',
-            icon: CupertinoIcons.car_detailed,
-            color: Colors.blue,
-            onTap: () {},
-          ),
-          _buildMenuCard(
-            context,
-            title: 'Đơn Hàng',
-            icon: CupertinoIcons.doc_text,
-            color: Colors.purple,
-            onTap: () {},
           ),
         ],
       ),
@@ -85,6 +71,7 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               title,
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
