@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart';
 
 // sqflite ffi for desktop platforms
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -21,11 +22,14 @@ void main() async {
   // Đảm bảo Flutter binding được khởi tạo trước khi gọi native code (SQLite)
   WidgetsFlutterBinding.ensureInitialized();
 
-  // If running on desktop (Windows/macOS/Linux) we need to initialize
-  // the ffi implementation of sqflite. This avoids the "databaseFactory
-  // not initialized" error when using sqflite_common_ffi.
-  sqfliteFfiInit();
-  databaseFactory = databaseFactoryFfi;
+  // Only desktop platforms should use sqflite_common_ffi.
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux)) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
 
   // 1. Khởi tạo Database Services
   final dbProvider = DatabaseProvider(config: databaseConfig);
