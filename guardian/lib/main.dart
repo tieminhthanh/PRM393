@@ -10,7 +10,11 @@ import 'package:guardian/app.dart';
 // Import Database
 import 'package:guardian/core/database/database_helper.dart';
 
+import 'package:guardian/core/constants/api_constants.dart';
+import 'package:guardian/core/network/api_client.dart';
 import 'package:guardian/features/admin/data/datasource/admin_local_datasource.dart';
+import 'package:guardian/features/admin/data/datasource/admin_remote_datasource.dart';
+import 'package:guardian/features/admin/data/repositories/admin_repository_impl.dart';
 
 // Import Product Feature
 import 'package:guardian/features/product/data/datasource/product_local_datasource.dart';
@@ -36,6 +40,16 @@ void main() async {
   final dbService = DatabaseService(dbProvider);
   final domainQueries = DomainQueries(dbService);
   final adminLocalDS = AdminLocalDataSourceImpl(dbService);
+  final apiConstants = ApiConstants.dev();
+  final apiClient = ApiClient(constants: apiConstants);
+  final adminRemoteDS = AdminRemoteDataSourceImpl(
+    client: apiClient,
+    constants: apiConstants,
+  );
+  final adminRepository = AdminRepositoryImpl(
+    localDataSource: adminLocalDS,
+    remoteDataSource: adminRemoteDS,
+  );
 
   // 2. Khởi tạo Data Sources & Repositories cho Product
   final productLocalDS = ProductLocalDataSourceImpl(dbService, domainQueries);
@@ -50,7 +64,7 @@ void main() async {
           create: (context) => ProductBloc(repository: productRepo)..add(LoadProducts()),
         ),
       ],
-      child: GuardianApp(adminLocalDataSource: adminLocalDS),
+      child: GuardianApp(adminRepository: adminRepository),
     ),
   );
 }

@@ -5,6 +5,8 @@ class EnterpriseProfile {
   final String? contactName;
   final String? contactPhone;
   final String? addressSummary;
+  final String? description;
+  final String? logoUrl;
   final String? email;
   final String? displayName;
   final bool isActive;
@@ -18,6 +20,8 @@ class EnterpriseProfile {
     this.contactName,
     this.contactPhone,
     this.addressSummary,
+    this.description,
+    this.logoUrl,
     this.email,
     this.displayName,
     required this.isActive,

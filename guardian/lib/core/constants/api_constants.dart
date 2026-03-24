@@ -148,6 +148,29 @@ class ApiEndpoints {
 
   String notifMarkRead(int id) => '$base/notifications/$id/read';
 
+  // ADMIN
+  String get adminStats => '$base/admin/stats';
+  String get adminRevenue => '$base/admin/revenue';
+  String get adminOrdersSeries => '$base/admin/orders/series';
+  String get adminBookingSeries => '$base/admin/bookings/series';
+  String get adminTopProducts => '$base/admin/top-products';
+  String get adminTopMachines => '$base/admin/top-machines';
+  String get adminTopRegions => '$base/admin/top-regions';
+  String get adminTopEnterprises => '$base/admin/top-enterprises';
+  String get adminAdmins => '$base/admin/admins';
+  String get adminEnterprises => '$base/admin/enterprises';
+  String get adminUsers => '$base/admin/users';
+  String get adminMachines => '$base/admin/machines';
+  String get adminFarms => '$base/admin/farms';
+  String get adminOrders => '$base/admin/orders';
+
+  String adminEnterpriseById(int id) => '$base/admin/enterprises/$id';
+  String adminEnterpriseStatus(int id) => '$base/admin/enterprises/$id/status';
+  String adminUserStatus(int id) => '$base/admin/users/$id/status';
+  String adminMachineApproval(int id) => '$base/admin/machines/$id/approval';
+  String adminFarmVerification(int id) => '$base/admin/farms/$id/verification';
+  String adminOrderStatus(int id) => '$base/admin/orders/$id/status';
+
   // IMAGES
   String get imageUpload => '$base/images/upload';
 

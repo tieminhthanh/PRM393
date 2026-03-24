@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'features/admin/data/datasource/admin_local_datasource.dart';
+import 'features/admin/domain/repositories/admin_repository.dart';
 import 'features/admin/presentation/pages/admin_dashboard_page.dart';
 import 'features/product/domain/entities/product.dart';
 import 'features/product/presentation/pages/home_page.dart';
@@ -12,10 +12,10 @@ import 'features/routes/app_routes.dart';
 class GuardianApp extends StatelessWidget {
   const GuardianApp({
     super.key,
-    required this.adminLocalDataSource,
+    required this.adminRepository,
   });
 
-  final AdminLocalDataSource adminLocalDataSource;
+  final AdminRepository adminRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +32,9 @@ class GuardianApp extends StatelessWidget {
         AppRoutes.products: (context) => const ProductListPage(),
         AppRoutes.productAdd: (context) => const ProductAddEditPage(),
         AppRoutes.adminDashboard: (context) => AdminDashboardPage(
-              adminLocalDataSource: adminLocalDataSource,
+              adminRepository: adminRepository,
+              initialTabIndex:
+                  (ModalRoute.of(context)?.settings.arguments as int?) ?? 0,
             ),
         AppRoutes.productDetail: (context) {
           final args = ModalRoute.of(context)?.settings.arguments as Product?;

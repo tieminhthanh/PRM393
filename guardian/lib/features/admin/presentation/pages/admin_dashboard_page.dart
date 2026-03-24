@@ -1,16 +1,22 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
-import '../../data/datasource/admin_local_datasource.dart';
+import '../../domain/entities/admin_control_snapshot.dart';
+import '../../domain/entities/chart_series_point.dart';
 import '../../domain/entities/enterprise_profile.dart';
 import '../../domain/entities/system_dashboard_stats.dart';
+import '../../domain/repositories/admin_repository.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({
     super.key,
-    required this.adminLocalDataSource,
+    required this.adminRepository,
+    this.initialTabIndex = 0,
   });
 
-  final AdminLocalDataSource adminLocalDataSource;
+  final AdminRepository adminRepository;
+  final int initialTabIndex;
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
@@ -21,11 +27,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   late final TabController _tabController;
   late Future<List<EnterpriseProfile>> _profilesFuture;
   late Future<SystemDashboardStats> _statsFuture;
+  late Future<AdminControlSnapshot> _controlFuture;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    final safeIndex = widget.initialTabIndex.clamp(0, 2);
+    _tabController = TabController(length: 3, vsync: this, initialIndex: safeIndex);
     _reloadData();
   }
 
@@ -36,13 +44,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   }
 
   void _reloadData() {
-    _profilesFuture = widget.adminLocalDataSource.getEnterpriseProfiles();
-    _statsFuture = widget.adminLocalDataSource.getSystemDashboardStats();
+    _profilesFuture = widget.adminRepository.getEnterpriseProfiles();
+    _statsFuture = widget.adminRepository.getSystemDashboardStats();
+    _controlFuture = widget.adminRepository.getAdminControlSnapshot();
   }
 
   Future<void> _refreshAll() async {
     setState(_reloadData);
-    await Future.wait([_profilesFuture, _statsFuture]);
+    await Future.wait([_profilesFuture, _statsFuture, _controlFuture]);
   }
 
   @override
@@ -61,6 +70,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           tabs: const [
             Tab(text: 'Hồ sơ doanh nghiệp'),
             Tab(text: 'Thống kê hệ thống'),
+            Tab(text: 'Kiểm soát'),
           ],
         ),
       ),
@@ -77,18 +87,46 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             statsFuture: _statsFuture,
             onRefresh: _refreshAll,
           ),
+          _AdminControlTab(
+            controlFuture: _controlFuture,
+            onRefresh: _refreshAll,
+            onToggleUserStatus: _handleToggleUserStatus,
+            onMachineApproval: _handleMachineApproval,
+            onFarmVerification: _handleFarmVerification,
+            onOrderStatus: _handleOrderStatus,
+          ),
         ],
       ),
     );
   }
 
   Future<void> _handleSaveProfile(EnterpriseProfile profile) async {
-    await widget.adminLocalDataSource.saveEnterpriseProfile(profile);
+    await widget.adminRepository.saveEnterpriseProfile(profile);
     await _refreshAll();
   }
 
   Future<void> _handleToggleStatus(int userId, bool isActive) async {
-    await widget.adminLocalDataSource.toggleEnterpriseStatus(userId, isActive);
+    await widget.adminRepository.toggleEnterpriseStatus(userId, isActive);
+    await _refreshAll();
+  }
+
+  Future<void> _handleToggleUserStatus(int userId, bool isActive) async {
+    await widget.adminRepository.toggleUserStatus(userId, isActive);
+    await _refreshAll();
+  }
+
+  Future<void> _handleMachineApproval(int machineId, bool isApproved) async {
+    await widget.adminRepository.updateMachineApproval(machineId, isApproved);
+    await _refreshAll();
+  }
+
+  Future<void> _handleFarmVerification(int farmId, bool isVerified) async {
+    await widget.adminRepository.updateFarmVerification(farmId, isVerified);
+    await _refreshAll();
+  }
+
+  Future<void> _handleOrderStatus(int orderId, String status) async {
+    await widget.adminRepository.updateOrderStatus(orderId, status);
     await _refreshAll();
   }
 }
@@ -273,6 +311,21 @@ class _SystemStatsTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 20),
+              _ChartPanel(
+                title: 'Doanh thu theo thời gian',
+                subtitle: 'Tổng doanh thu đơn hàng (theo tháng)',
+                child: _RevenueLineChart(series: stats.revenueSeries),
+              ),
+              const SizedBox(height: 16),
+              _ChartPanel(
+                title: 'Đơn hàng & thuê máy',
+                subtitle: 'So sánh số đơn hàng và số lượt thuê máy',
+                child: _OrdersBookingBarChart(
+                  orderSeries: stats.orderSeries,
+                  bookingSeries: stats.bookingSeries,
+                ),
+              ),
+              const SizedBox(height: 16),
               _InsightPanel(
                 title: 'Sức khỏe hệ thống',
                 child: Column(
@@ -292,30 +345,119 @@ class _SystemStatsTab extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               _InsightPanel(
-                title: 'Top doanh nghiệp theo số sản phẩm',
+                title: 'Thống kê Machine',
                 child: Column(
-                  children: stats.topEnterprises.isEmpty
-                      ? const [
-                          _EmptyState(message: 'Chưa có doanh nghiệp nào phát sinh sản phẩm.')
-                        ]
-                      : stats.topEnterprises.map((enterprise) {
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(
-                              backgroundColor: (enterprise['IsActive'] as int? ?? 0) == 1
-                                  ? const Color(0xFFDCFCE7)
-                                  : const Color(0xFFFEE2E2),
-                              child: Icon(
-                                Icons.business,
-                                color: (enterprise['IsActive'] as int? ?? 0) == 1
-                                    ? const Color(0xFF0F5C45)
-                                    : const Color(0xFFB91C1C),
-                              ),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _SubSectionTitle('Máy được thuê nhiều nhất'),
+                    if (stats.topMachines.isEmpty)
+                      const _EmptyState(message: 'Chưa có dữ liệu thuê máy.')
+                    else
+                      ...stats.topMachines.map((machine) {
+                        final count = machine['BookingCount'] ?? machine['bookingCount'] ?? 0;
+                        final revenue = _formatCurrency(machine['Revenue'] ?? machine['revenue']);
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const CircleAvatar(
+                            backgroundColor: Color(0xFFFFF3C4),
+                            child: Icon(Icons.agriculture, color: Color(0xFF7B5E00)),
+                          ),
+                          title: Text(
+                            machine['MachineType'] as String? ??
+                                machine['machineType'] as String? ??
+                                'Máy nông nghiệp',
+                          ),
+                          subtitle: Text('Doanh thu $revenue'),
+                          trailing: Text('$count lượt'),
+                        );
+                      }),
+                    const SizedBox(height: 12),
+                    const _SubSectionTitle('Khu vực có nhu cầu cao'),
+                    if (stats.topRegions.isEmpty)
+                      const _EmptyState(message: 'Chưa có dữ liệu khu vực.')
+                    else
+                      ...stats.topRegions.map((region) {
+                        final count = region['BookingCount'] ?? region['bookingCount'] ?? 0;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const CircleAvatar(
+                            backgroundColor: Color(0xFFDCEBFF),
+                            child: Icon(Icons.location_on, color: Color(0xFF1565C0)),
+                          ),
+                          title: Text(
+                            region['Region'] as String? ??
+                                region['region'] as String? ??
+                                'Khu vực',
+                          ),
+                          trailing: Text('$count lượt'),
+                        );
+                      }),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _InsightPanel(
+                title: 'Marketplace Insights',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _SubSectionTitle('Sản phẩm bán chạy'),
+                    if (stats.topProducts.isEmpty)
+                      const _EmptyState(message: 'Chưa có dữ liệu sản phẩm.')
+                    else
+                      ...stats.topProducts.map((product) {
+                        final quantity = product['QuantitySold'] ?? product['quantitySold'] ?? 0;
+                        final revenue = _formatCurrency(product['Revenue'] ?? product['revenue']);
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const CircleAvatar(
+                            backgroundColor: Color(0xFFEDE9FE),
+                            child: Icon(Icons.shopping_bag, color: Color(0xFF5B21B6)),
+                          ),
+                          title: Text(
+                            product['Title'] as String? ??
+                                product['title'] as String? ??
+                                'Sản phẩm',
+                          ),
+                          subtitle: Text('Doanh thu $revenue'),
+                          trailing: Text('$quantity lượt'),
+                        );
+                      }),
+                    const SizedBox(height: 12),
+                    const _SubSectionTitle('Top SME theo doanh thu'),
+                    if (stats.topEnterprises.isEmpty)
+                      const _EmptyState(message: 'Chưa có dữ liệu doanh nghiệp.')
+                    else
+                      ...stats.topEnterprises.map((enterprise) {
+                        final revenue = _formatCurrency(enterprise['Revenue'] ?? enterprise['revenue']);
+                        final orders = enterprise['OrderCount'] ?? enterprise['orderCount'] ?? 0;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: _boolFromAny(
+                              enterprise['IsActive'] ?? enterprise['isActive'],
+                            )
+                                ? const Color(0xFFDCFCE7)
+                                : const Color(0xFFFEE2E2),
+                            child: Icon(
+                              Icons.business,
+                              color: _boolFromAny(
+                                enterprise['IsActive'] ?? enterprise['isActive'],
+                              )
+                                  ? const Color(0xFF0F5C45)
+                                  : const Color(0xFFB91C1C),
                             ),
-                            title: Text(enterprise['CompanyName'] as String? ?? 'Không rõ'),
-                            trailing: Text('${enterprise['ProductCount'] ?? 0} SP'),
-                          );
-                        }).toList(),
+                          ),
+                          title: Text(
+                            enterprise['CompanyName'] as String? ??
+                                enterprise['companyName'] as String? ??
+                                'Không rõ',
+                          ),
+                          subtitle: Text('Doanh thu $revenue'),
+                          trailing: Text('$orders đơn'),
+                        );
+                      }),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -333,16 +475,249 @@ class _SystemStatsTab extends StatelessWidget {
                               backgroundColor: Color(0xFFDCEBFF),
                               child: Icon(Icons.support_agent, color: Color(0xFF1565C0)),
                             ),
-                            title: Text(admin['FullName'] as String? ?? 'Admin'),
-                            subtitle: Text(admin['Position'] as String? ?? 'Chưa cập nhật vị trí'),
+                            title: Text(
+                              admin['FullName'] as String? ??
+                                  admin['fullName'] as String? ??
+                                  'Admin',
+                            ),
+                            subtitle: Text(
+                              admin['Position'] as String? ??
+                                  admin['position'] as String? ??
+                                  'Chưa cập nhật vị trí',
+                            ),
                             trailing: Text(
-                              (admin['IsActive'] as int? ?? 0) == 1 ? 'Đang hoạt động' : 'Tạm khóa',
+                              _boolFromAny(admin['IsActive'] ?? admin['isActive'])
+                                  ? 'Đang hoạt động'
+                                  : 'Tạm khóa',
                               style: TextStyle(
-                                color: (admin['IsActive'] as int? ?? 0) == 1
+                                color: _boolFromAny(admin['IsActive'] ?? admin['isActive'])
                                     ? const Color(0xFF0F5C45)
                                     : const Color(0xFFB91C1C),
                                 fontWeight: FontWeight.w600,
                               ),
+                            ),
+                          );
+                        }).toList(),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AdminControlTab extends StatelessWidget {
+  const _AdminControlTab({
+    required this.controlFuture,
+    required this.onRefresh,
+    required this.onToggleUserStatus,
+    required this.onMachineApproval,
+    required this.onFarmVerification,
+    required this.onOrderStatus,
+  });
+
+  final Future<AdminControlSnapshot> controlFuture;
+  final Future<void> Function() onRefresh;
+  final Future<void> Function(int userId, bool isActive) onToggleUserStatus;
+  final Future<void> Function(int machineId, bool isApproved) onMachineApproval;
+  final Future<void> Function(int farmId, bool isVerified) onFarmVerification;
+  final Future<void> Function(int orderId, String status) onOrderStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: FutureBuilder<AdminControlSnapshot>(
+        future: controlFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return _ErrorState(
+              message: 'Không tải được dữ liệu kiểm soát.',
+              onRetry: onRefresh,
+            );
+          }
+
+          final control = snapshot.data;
+          if (control == null) {
+            return const _EmptyState(message: 'Chưa có dữ liệu kiểm soát.');
+          }
+
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            children: [
+              const _SectionBanner(
+                title: 'Trung tâm kiểm soát',
+                subtitle: 'Duyệt người dùng, máy móc, nông trại và theo dõi đơn hàng.',
+              ),
+              const SizedBox(height: 16),
+              _InsightPanel(
+                title: 'Người dùng',
+                child: Column(
+                  children: control.users.isEmpty
+                      ? const [
+                          _EmptyState(message: 'Chưa có người dùng.')
+                        ]
+                      : control.users.map((user) {
+                        final isActive = _boolFromAny(user['IsActive'] ?? user['isActive']);
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor: isActive
+                                  ? const Color(0xFFDCFCE7)
+                                  : const Color(0xFFFEE2E2),
+                              child: Icon(
+                                Icons.person,
+                                color: isActive ? const Color(0xFF0F5C45) : const Color(0xFFB91C1C),
+                              ),
+                            ),
+                            title: Text(
+                              user['DisplayName'] as String? ??
+                                  user['displayName'] as String? ??
+                                  'Người dùng',
+                            ),
+                            subtitle: Text(
+                              '${user['RoleType'] ?? user['roleType'] ?? 'N/A'} • ${user['Email'] ?? user['email'] ?? 'Chưa có email'}',
+                            ),
+                            trailing: Switch.adaptive(
+                              value: isActive,
+                              onChanged: (value) async {
+                                final id = user['UserId'] as int? ?? user['userId'] as int?;
+                                if (id == null) return;
+                                await onToggleUserStatus(id, value);
+                              },
+                            ),
+                          );
+                        }).toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _InsightPanel(
+                title: 'Máy nông nghiệp',
+                child: Column(
+                  children: control.machines.isEmpty
+                      ? const [
+                          _EmptyState(message: 'Chưa có máy cần duyệt.')
+                        ]
+                      : control.machines.map((machine) {
+                        final isApproved = _boolFromAny(
+                          machine['IsApproved'] ?? machine['isApproved'],
+                        );
+                          final price = _formatCurrency(machine['BasePricePerHour']);
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor: isApproved
+                                  ? const Color(0xFFE0F2FE)
+                                  : const Color(0xFFFDE2E2),
+                              child: Icon(
+                                Icons.agriculture,
+                                color: isApproved ? const Color(0xFF1565C0) : const Color(0xFFB91C1C),
+                              ),
+                            ),
+                            title: Text(
+                              machine['MachineType'] as String? ??
+                                  machine['machineType'] as String? ??
+                                  'Máy nông nghiệp',
+                            ),
+                            subtitle: Text(
+                              'Chủ sở hữu: ${machine['OwnerName'] ?? machine['ownerName'] ?? 'N/A'} • $price/giờ',
+                            ),
+                            trailing: Switch.adaptive(
+                              value: isApproved,
+                              onChanged: (value) async {
+                                final id = machine['MachineId'] as int? ?? machine['machineId'] as int?;
+                                if (id == null) return;
+                                await onMachineApproval(id, value);
+                              },
+                            ),
+                          );
+                        }).toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _InsightPanel(
+                title: 'Nông trại',
+                child: Column(
+                  children: control.farms.isEmpty
+                      ? const [
+                          _EmptyState(message: 'Chưa có nông trại cần duyệt.')
+                        ]
+                      : control.farms.map((farm) {
+                        final isVerified = _boolFromAny(
+                          farm['IsVerified'] ?? farm['isVerified'],
+                        );
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor: isVerified
+                                  ? const Color(0xFFDCFCE7)
+                                  : const Color(0xFFFDE2E2),
+                              child: Icon(
+                                Icons.eco,
+                                color: isVerified ? const Color(0xFF0F5C45) : const Color(0xFFB91C1C),
+                              ),
+                            ),
+                            title: Text(
+                              farm['FarmName'] as String? ??
+                                  farm['farmName'] as String? ??
+                                  'Nông trại',
+                            ),
+                            subtitle: Text(
+                              'Chủ trại: ${farm['FarmerName'] ?? farm['farmerName'] ?? 'N/A'} • ${farm['AreaHectares'] ?? farm['areaHectares'] ?? 0} ha',
+                            ),
+                            trailing: Switch.adaptive(
+                              value: isVerified,
+                              onChanged: (value) async {
+                                final id = farm['FarmId'] as int? ?? farm['farmId'] as int?;
+                                if (id == null) return;
+                                await onFarmVerification(id, value);
+                              },
+                            ),
+                          );
+                        }).toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _InsightPanel(
+                title: 'Đơn hàng',
+                child: Column(
+                  children: control.orders.isEmpty
+                      ? const [
+                          _EmptyState(message: 'Chưa có đơn hàng.')
+                        ]
+                      : control.orders.map((order) {
+                          final total = _formatCurrency(order['OrderTotal'] ?? order['orderTotal']);
+                          final status = (order['Status'] ?? order['status'] ?? 'CREATED').toString();
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const CircleAvatar(
+                              backgroundColor: Color(0xFFF3E8FF),
+                              child: Icon(Icons.receipt_long, color: Color(0xFF6D28D9)),
+                            ),
+                            title: Text('Đơn #${order['OrderId'] ?? order['orderId'] ?? '-'} • $total'),
+                            subtitle: Text('Người mua: ${order['BuyerName'] ?? order['buyerName'] ?? 'N/A'}'),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                final id = order['OrderId'] as int? ?? order['orderId'] as int?;
+                                if (id == null) return;
+                                await onOrderStatus(id, value);
+                              },
+                              itemBuilder: (context) => const [
+                                PopupMenuItem(value: 'CREATED', child: Text('Đã tạo')),
+                                PopupMenuItem(value: 'PAID', child: Text('Đã thanh toán')),
+                                PopupMenuItem(value: 'SHIPPING', child: Text('Đang giao')),
+                                PopupMenuItem(value: 'COMPLETED', child: Text('Hoàn tất')),
+                                PopupMenuItem(value: 'CANCELLED', child: Text('Hủy')),
+                                PopupMenuItem(value: 'DISPUTED', child: Text('Tranh chấp')),
+                              ],
+                              child: _StatusChip(label: status),
                             ),
                           );
                         }).toList(),
@@ -372,6 +747,8 @@ class _EnterpriseFormSheetState extends State<_EnterpriseFormSheet> {
   late final TextEditingController _phoneController;
   late final TextEditingController _emailController;
   late final TextEditingController _addressController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _logoController;
   late bool _isActive;
 
   @override
@@ -384,6 +761,8 @@ class _EnterpriseFormSheetState extends State<_EnterpriseFormSheet> {
     _phoneController = TextEditingController(text: profile?.contactPhone ?? '');
     _emailController = TextEditingController(text: profile?.email ?? '');
     _addressController = TextEditingController(text: profile?.addressSummary ?? '');
+    _descriptionController = TextEditingController(text: profile?.description ?? '');
+    _logoController = TextEditingController(text: profile?.logoUrl ?? '');
     _isActive = profile?.isActive ?? true;
   }
 
@@ -395,6 +774,8 @@ class _EnterpriseFormSheetState extends State<_EnterpriseFormSheet> {
     _phoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
+    _descriptionController.dispose();
+    _logoController.dispose();
     super.dispose();
   }
 
@@ -430,6 +811,30 @@ class _EnterpriseFormSheetState extends State<_EnterpriseFormSheet> {
               _FormField(label: 'Số điện thoại', controller: _phoneController, keyboardType: TextInputType.phone),
               _FormField(label: 'Email', controller: _emailController, keyboardType: TextInputType.emailAddress),
               _FormField(label: 'Địa chỉ', controller: _addressController, maxLines: 3),
+              _FormField(label: 'Mô tả doanh nghiệp', controller: _descriptionController, maxLines: 4),
+              _FormField(
+                label: 'Logo URL',
+                controller: _logoController,
+                keyboardType: TextInputType.url,
+                onChanged: (_) => setState(() {}),
+              ),
+              if (_logoController.text.trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    _logoController.text.trim(),
+                    height: 140,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 140,
+                      color: const Color(0xFFF8FAFC),
+                      child: const Center(child: Text('Không tải được logo')),
+                    ),
+                  ),
+                ),
+              ],
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Cho phép doanh nghiệp hoạt động'),
@@ -472,6 +877,8 @@ class _EnterpriseFormSheetState extends State<_EnterpriseFormSheet> {
         contactName: _contactController.text.trim().isEmpty ? null : _contactController.text.trim(),
         contactPhone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         addressSummary: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+        logoUrl: _logoController.text.trim().isEmpty ? null : _logoController.text.trim(),
         email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
         displayName: _companyController.text.trim(),
         isActive: _isActive,
@@ -577,12 +984,17 @@ class _EnterpriseCard extends StatelessWidget {
                 backgroundColor: profile.isActive
                     ? const Color(0xFFDDF6E8)
                     : const Color(0xFFFDE2E2),
-                child: Icon(
-                  Icons.apartment,
-                  color: profile.isActive
-                      ? const Color(0xFF0F5C45)
-                      : const Color(0xFFB91C1C),
-                ),
+                backgroundImage: (profile.logoUrl != null && profile.logoUrl!.isNotEmpty)
+                    ? NetworkImage(profile.logoUrl!)
+                    : null,
+                child: (profile.logoUrl == null || profile.logoUrl!.isEmpty)
+                    ? Icon(
+                        Icons.apartment,
+                        color: profile.isActive
+                            ? const Color(0xFF0F5C45)
+                            : const Color(0xFFB91C1C),
+                      )
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -625,6 +1037,13 @@ class _EnterpriseCard extends StatelessWidget {
             Text(
               profile.addressSummary!,
               style: const TextStyle(color: Color(0xFF475467)),
+            ),
+          ],
+          if (profile.description != null && profile.description!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              profile.description!,
+              style: const TextStyle(color: Color(0xFF667085)),
             ),
           ],
           const SizedBox(height: 12),
@@ -684,6 +1103,265 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
+class _ChartPanel extends StatelessWidget {
+  const _ChartPanel({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(subtitle, style: const TextStyle(color: Color(0xFF667085))),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _RevenueLineChart extends StatelessWidget {
+  const _RevenueLineChart({required this.series});
+
+  final List<ChartSeriesPoint> series;
+
+  @override
+  Widget build(BuildContext context) {
+    if (series.isEmpty) {
+      return const _EmptyState(message: 'Chưa có dữ liệu doanh thu.');
+    }
+
+    final spots = series
+        .asMap()
+        .entries
+        .map((entry) => FlSpot(entry.key.toDouble(), entry.value.value))
+        .toList();
+    final maxValue = series.map((e) => e.value).fold<double>(0, (a, b) => a > b ? a : b);
+
+    return SizedBox(
+      height: 220,
+      child: LineChart(
+        LineChartData(
+          minX: 0,
+          maxX: (series.length - 1).toDouble(),
+          minY: 0,
+          maxY: maxValue <= 0 ? 1 : maxValue * 1.2,
+          gridData: FlGridData(show: true, drawVerticalLine: false),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: 1,
+                getTitlesWidget: (value, meta) {
+                  final index = value.round();
+                  if (index < 0 || index >= series.length) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      _shortLabel(series[index].label),
+                      style: const TextStyle(fontSize: 10, color: Color(0xFF667085)),
+                    ),
+                  );
+                },
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 48,
+                getTitlesWidget: (value, meta) => Text(
+                  _compactCurrency(value),
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF667085)),
+                ),
+              ),
+            ),
+          ),
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              color: const Color(0xFF0F5C45),
+              barWidth: 3,
+              belowBarData: BarAreaData(
+                show: true,
+                color: const Color(0xFF0F5C45).withValues(alpha: 0.15),
+              ),
+              dotData: FlDotData(show: true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OrdersBookingBarChart extends StatelessWidget {
+  const _OrdersBookingBarChart({
+    required this.orderSeries,
+    required this.bookingSeries,
+  });
+
+  final List<ChartSeriesPoint> orderSeries;
+  final List<ChartSeriesPoint> bookingSeries;
+
+  @override
+  Widget build(BuildContext context) {
+    if (orderSeries.isEmpty || bookingSeries.isEmpty) {
+      return const _EmptyState(message: 'Chưa có dữ liệu đơn hàng/thuê máy.');
+    }
+
+    final length = orderSeries.length < bookingSeries.length
+        ? orderSeries.length
+        : bookingSeries.length;
+    if (length == 0) {
+      return const _EmptyState(message: 'Chưa có dữ liệu đơn hàng/thuê máy.');
+    }
+
+    final maxValue = [
+      ...orderSeries.take(length).map((e) => e.value),
+      ...bookingSeries.take(length).map((e) => e.value),
+    ].fold<double>(0, (a, b) => a > b ? a : b);
+
+    final groups = List.generate(length, (index) {
+      final orderValue = orderSeries[index].value;
+      final bookingValue = bookingSeries[index].value;
+      return BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(
+            toY: orderValue,
+            color: const Color(0xFFD84315),
+            width: 10,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          BarChartRodData(
+            toY: bookingValue,
+            color: const Color(0xFF1565C0),
+            width: 10,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ],
+        barsSpace: 4,
+      );
+    });
+
+    return Column(
+      children: [
+        const _ChartLegend(),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 220,
+          child: BarChart(
+            BarChartData(
+              maxY: maxValue <= 0 ? 1 : maxValue * 1.2,
+              minY: 0,
+              barGroups: groups,
+              gridData: FlGridData(show: true, drawVerticalLine: false),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 36,
+                    getTitlesWidget: (value, meta) => Text(
+                      value.toInt().toString(),
+                      style: const TextStyle(fontSize: 10, color: Color(0xFF667085)),
+                    ),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (value, meta) {
+                      final index = value.round();
+                      if (index < 0 || index >= length) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          _shortLabel(orderSeries[index].label),
+                          style: const TextStyle(fontSize: 10, color: Color(0xFF667085)),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChartLegend extends StatelessWidget {
+  const _ChartLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        _LegendItem(color: Color(0xFFD84315), label: 'Đơn hàng'),
+        SizedBox(width: 16),
+        _LegendItem(color: Color(0xFF1565C0), label: 'Thuê máy'),
+      ],
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  const _LegendItem({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF667085))),
+      ],
+    );
+  }
+}
+
 class _InsightPanel extends StatelessWidget {
   const _InsightPanel({required this.title, required this.child});
 
@@ -708,6 +1386,46 @@ class _InsightPanel extends StatelessWidget {
           const SizedBox(height: 16),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _SubSectionTitle extends StatelessWidget {
+  const _SubSectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF475467)),
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _statusColor(label);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
       ),
     );
   }
@@ -790,18 +1508,73 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
+final NumberFormat _compactCurrencyFormatter =
+    NumberFormat.compactCurrency(locale: 'vi_VN', symbol: '₫');
+final NumberFormat _currencyFormatter =
+    NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
+
+String _compactCurrency(double value) {
+  return _compactCurrencyFormatter.format(value);
+}
+
+String _formatCurrency(dynamic value) {
+  if (value is num) {
+    return _currencyFormatter.format(value);
+  }
+  final parsed = double.tryParse(value?.toString() ?? '') ?? 0.0;
+  return _currencyFormatter.format(parsed);
+}
+
+String _shortLabel(String label) {
+  if (label.contains('-')) {
+    final parts = label.split('-');
+    if (parts.length >= 2) {
+      final year = parts[0];
+      final month = parts[1];
+      return '$month/${year.substring(year.length - 2)}';
+    }
+  }
+  return label;
+}
+
+Color _statusColor(String status) {
+  switch (status.toUpperCase()) {
+    case 'PAID':
+      return const Color(0xFF0F5C45);
+    case 'SHIPPING':
+      return const Color(0xFF1565C0);
+    case 'COMPLETED':
+      return const Color(0xFF16A34A);
+    case 'CANCELLED':
+      return const Color(0xFFB91C1C);
+    case 'DISPUTED':
+      return const Color(0xFFB45309);
+    default:
+      return const Color(0xFF475467);
+  }
+}
+
+bool _boolFromAny(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value == 1;
+  if (value is String) return value == '1' || value.toLowerCase() == 'true';
+  return false;
+}
+
 class _FormField extends StatelessWidget {
   const _FormField({
     required this.label,
     required this.controller,
     this.maxLines = 1,
     this.keyboardType,
+    this.onChanged,
   });
 
   final String label;
   final TextEditingController controller;
   final int maxLines;
   final TextInputType? keyboardType;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -816,6 +1589,7 @@ class _FormField extends StatelessWidget {
             controller: controller,
             maxLines: maxLines,
             keyboardType: keyboardType,
+            onChanged: onChanged,
             decoration: InputDecoration(
               filled: true,
               fillColor: const Color(0xFFF8FAFC),

@@ -21,9 +21,25 @@ class Migrations {
   // onUpgrade – tăng version khi thay đổi schema
   // -------------------------------------------------------
   Future<void> onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // if (oldVersion < 2) {
-    //   await db.execute('ALTER TABLE Users ADD COLUMN AvatarUrl TEXT');
-    // }
+    if (oldVersion < 2) {
+      // SME extra fields for profile
+      try {
+        await db.execute('ALTER TABLE SMEProfiles ADD COLUMN Description TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE SMEProfiles ADD COLUMN LogoUrl TEXT');
+      } catch (_) {}
+
+      // Admin control flags
+      try {
+        await db.execute('ALTER TABLE iot_Farms ADD COLUMN IsVerified INTEGER DEFAULT 0');
+      } catch (_) {}
+      try {
+        await db.execute(
+          'ALTER TABLE logistics_AgriMachines ADD COLUMN IsApproved INTEGER DEFAULT 0',
+        );
+      } catch (_) {}
+    }
   }
 
   // =======================================================
@@ -88,6 +104,8 @@ class Migrations {
         ContactName    TEXT,
         ContactPhone   TEXT,
         AddressSummary TEXT,
+        Description    TEXT,
+        LogoUrl        TEXT,
         FOREIGN KEY (UserId) REFERENCES Users(UserId)
       );
     ''');
@@ -114,6 +132,7 @@ class Migrations {
         Location       TEXT,
         AreaHectares   REAL    NOT NULL,
         CropType       TEXT,
+        IsVerified     INTEGER DEFAULT 0,
         Certifications TEXT,
         FOREIGN KEY (FarmerId) REFERENCES FarmerProfiles(UserId)
       );
@@ -160,6 +179,7 @@ class Migrations {
         MachineType      TEXT    NOT NULL,
         Description      TEXT,
         BasePricePerHour REAL    NOT NULL,
+        IsApproved       INTEGER DEFAULT 0,
         FOREIGN KEY (OwnerId) REFERENCES Users(UserId)
       );
     ''');
@@ -335,14 +355,47 @@ class Migrations {
 
     // SMEProfiles
     final smes = [
-      [5, 'HTX Nông Nghiệp Xanh', '0101010101', 'Ông Bình'],
-      [6, 'Công Ty Cơ Khí Vina',  '0202020202', 'Bà An'],
-      [7, 'Phân Bón Miền Nam',    '0303030303', 'Anh Dũng'],
-      [8, 'Logistics Nông Thôn',  '0404040404', 'Anh Hoàng'],
+      [
+        5,
+        'HTX Nông Nghiệp Xanh',
+        '0101010101',
+        'Ông Bình',
+        'Chuyên cung ứng nông sản sạch theo mùa vụ.',
+        'https://picsum.photos/id/205/200/200',
+      ],
+      [
+        6,
+        'Công Ty Cơ Khí Vina',
+        '0202020202',
+        'Bà An',
+        'Giải pháp cơ giới hóa nông nghiệp hiện đại.',
+        'https://picsum.photos/id/206/200/200',
+      ],
+      [
+        7,
+        'Phân Bón Miền Nam',
+        '0303030303',
+        'Anh Dũng',
+        'Vật tư đầu vào, phân bón chuyên dụng vùng miền.',
+        'https://picsum.photos/id/207/200/200',
+      ],
+      [
+        8,
+        'Logistics Nông Thôn',
+        '0404040404',
+        'Anh Hoàng',
+        'Vận tải nông sản và kho lạnh theo tuyến.',
+        'https://picsum.photos/id/208/200/200',
+      ],
     ];
     for (final s in smes) {
       batch.insert('SMEProfiles', {
-        'UserId': s[0], 'CompanyName': s[1], 'TaxCode': s[2], 'ContactName': s[3],
+        'UserId': s[0],
+        'CompanyName': s[1],
+        'TaxCode': s[2],
+        'ContactName': s[3],
+        'Description': s[4],
+        'LogoUrl': s[5],
       });
     }
 
@@ -381,21 +434,21 @@ class Migrations {
 
     // iot_Farms
     final farms = [
-      [1, 'Rẫy Cà Phê Tèo',       '12.6,108.0', 2.5, 'Cà Phê'],
-      [1, 'Rẫy Tiêu Tèo',         '12.6,108.1', 1.0, 'Hồ Tiêu'],
-      [2, 'Ruộng Lúa Thắm',       '20.4,106.2', 1.2, 'Lúa Nước'],
-      [2, 'Vườn Rau Thắm',        '20.4,106.3', 0.5, 'Rau Sạch'],
-      [3, 'Vườn Sầu Riêng Hùng',  '10.3,106.0', 3.0, 'Sầu Riêng'],
-      [3, 'Vườn Chôm Chôm',       '10.3,106.1', 1.5, 'Chôm Chôm'],
-      [4, 'Đồi Cam Hoa',          '20.9,105.1', 1.8, 'Cam Cao Phong'],
-      [4, 'Vườn Mận Thung Lũng',  '20.9,105.2', 2.0, 'Mận Hậu'],
-      [1, 'Trại Thủy Canh A',     '12.6,108.2', 0.2, 'Xà Lách'],
-      [3, 'Vườn Bưởi Da Xanh',    '10.4,106.0', 1.0, 'Bưởi'],
+      [1, 'Rẫy Cà Phê Tèo',       '12.6,108.0', 2.5, 'Cà Phê', 1],
+      [1, 'Rẫy Tiêu Tèo',         '12.6,108.1', 1.0, 'Hồ Tiêu', 1],
+      [2, 'Ruộng Lúa Thắm',       '20.4,106.2', 1.2, 'Lúa Nước', 1],
+      [2, 'Vườn Rau Thắm',        '20.4,106.3', 0.5, 'Rau Sạch', 0],
+      [3, 'Vườn Sầu Riêng Hùng',  '10.3,106.0', 3.0, 'Sầu Riêng', 1],
+      [3, 'Vườn Chôm Chôm',       '10.3,106.1', 1.5, 'Chôm Chôm', 0],
+      [4, 'Đồi Cam Hoa',          '20.9,105.1', 1.8, 'Cam Cao Phong', 1],
+      [4, 'Vườn Mận Thung Lũng',  '20.9,105.2', 2.0, 'Mận Hậu', 0],
+      [1, 'Trại Thủy Canh A',     '12.6,108.2', 0.2, 'Xà Lách', 1],
+      [3, 'Vườn Bưởi Da Xanh',    '10.4,106.0', 1.0, 'Bưởi', 1],
     ];
     for (final f in farms) {
       batch.insert('iot_Farms', {
         'FarmerId': f[0], 'FarmName': f[1], 'Location': f[2],
-        'AreaHectares': f[3], 'CropType': f[4],
+        'AreaHectares': f[3], 'CropType': f[4], 'IsVerified': f[5],
       });
     }
 
@@ -478,21 +531,21 @@ class Migrations {
 
     // logistics_AgriMachines
     final machines = [
-      [6, 'Máy Cày Kubota L5018',  'Máy cày 50HP kèm dàn xới',  250000.0],
-      [6, 'Drone Phun Thuốc DJI',  'Drone tải trọng 40 lít',     800000.0],
-      [6, 'Máy Gặt Đập Liên Hợp', 'Thu hoạch lúa nhanh',         500000.0],
-      [8, 'Xe Tải Isuzu 2 Tấn',   'Xe thùng bạt chở nông sản',  150000.0],
-      [6, 'Máy Sấy Vĩ Ngang',     'Máy sấy lúa 4 tấn/mẻ',      100000.0],
-      [6, 'Máy Gieo Hạt 8 Hàng',  'Gieo hạt tự động hóa',       120000.0],
-      [8, 'Xe Cẩu 1 Tấn',         'Cẩu vật tư',                  300000.0],
-      [6, 'Máy Xới Đất Đa Năng',  'Xới luống động cơ xăng',      80000.0],
-      [8, 'Xe Tải Hino 5 Tấn',    'Chở hàng đường dài',          250000.0],
-      [6, 'Hệ Thống Tưới Cuộn',   'Ống cuộn tưới 200m',          70000.0],
+      [6, 'Máy Cày Kubota L5018',  'Máy cày 50HP kèm dàn xới',  250000.0, 1],
+      [6, 'Drone Phun Thuốc DJI',  'Drone tải trọng 40 lít',     800000.0, 1],
+      [6, 'Máy Gặt Đập Liên Hợp', 'Thu hoạch lúa nhanh',         500000.0, 1],
+      [8, 'Xe Tải Isuzu 2 Tấn',   'Xe thùng bạt chở nông sản',  150000.0, 0],
+      [6, 'Máy Sấy Vĩ Ngang',     'Máy sấy lúa 4 tấn/mẻ',      100000.0, 1],
+      [6, 'Máy Gieo Hạt 8 Hàng',  'Gieo hạt tự động hóa',       120000.0, 1],
+      [8, 'Xe Cẩu 1 Tấn',         'Cẩu vật tư',                  300000.0, 0],
+      [6, 'Máy Xới Đất Đa Năng',  'Xới luống động cơ xăng',      80000.0, 1],
+      [8, 'Xe Tải Hino 5 Tấn',    'Chở hàng đường dài',          250000.0, 1],
+      [6, 'Hệ Thống Tưới Cuộn',   'Ống cuộn tưới 200m',          70000.0, 1],
     ];
     for (final m in machines) {
       batch.insert('logistics_AgriMachines', {
         'OwnerId': m[0], 'MachineType': m[1],
-        'Description': m[2], 'BasePricePerHour': m[3],
+        'Description': m[2], 'BasePricePerHour': m[3], 'IsApproved': m[4],
       });
     }
 

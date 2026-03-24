@@ -38,7 +38,11 @@ class HomePage extends StatelessWidget {
             icon: CupertinoIcons.building_2_fill,
             color: Colors.teal,
             onTap: () {
-              Navigator.pushNamed(context, AppRoutes.adminDashboard);
+              Navigator.pushNamed(
+                context,
+                AppRoutes.adminDashboard,
+                arguments: 0,
+              );
             },
           ),
           _buildMenuCard(
@@ -58,7 +62,11 @@ class HomePage extends StatelessWidget {
             icon: CupertinoIcons.chart_bar_alt_fill,
             color: Colors.indigo,
             onTap: () {
-              Navigator.pushNamed(context, AppRoutes.adminDashboard);
+              Navigator.pushNamed(
+                context,
+                AppRoutes.adminDashboard,
+                arguments: 1,
+              );
             },
           ),
           _buildMenuCard(
@@ -67,7 +75,11 @@ class HomePage extends StatelessWidget {
             icon: CupertinoIcons.person_2_square_stack_fill,
             color: Colors.deepOrange,
             onTap: () {
-              Navigator.pushNamed(context, AppRoutes.adminDashboard);
+              Navigator.pushNamed(
+                context,
+                AppRoutes.adminDashboard,
+                arguments: 2,
+              );
             },
           ),
         ],

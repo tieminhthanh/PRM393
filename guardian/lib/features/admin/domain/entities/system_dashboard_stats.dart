@@ -1,3 +1,5 @@
+import 'chart_series_point.dart';
+
 class SystemDashboardStats {
   final int totalEnterprises;
   final int totalAdmins;
@@ -8,8 +10,14 @@ class SystemDashboardStats {
   final int activeUsers;
   final int inactiveUsers;
   final int openMachineRequests;
+  final List<ChartSeriesPoint> revenueSeries;
+  final List<ChartSeriesPoint> orderSeries;
+  final List<ChartSeriesPoint> bookingSeries;
   final List<Map<String, dynamic>> adminProfiles;
   final List<Map<String, dynamic>> topEnterprises;
+  final List<Map<String, dynamic>> topProducts;
+  final List<Map<String, dynamic>> topMachines;
+  final List<Map<String, dynamic>> topRegions;
 
   const SystemDashboardStats({
     required this.totalEnterprises,
@@ -21,7 +29,13 @@ class SystemDashboardStats {
     required this.activeUsers,
     required this.inactiveUsers,
     required this.openMachineRequests,
+    required this.revenueSeries,
+    required this.orderSeries,
+    required this.bookingSeries,
     required this.adminProfiles,
     required this.topEnterprises,
+    required this.topProducts,
+    required this.topMachines,
+    required this.topRegions,
   });
 }
